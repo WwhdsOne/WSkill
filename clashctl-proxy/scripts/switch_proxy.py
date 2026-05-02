@@ -48,6 +48,7 @@ def switch_node(group_name, node_name):
         return False
 
 def main():
+    # 获取组内所有节点
     proxies = api_get("/proxies")
     if "error" in proxies:
         print(f"❌ API连接失败: {proxies['error']}")
@@ -80,7 +81,7 @@ def main():
         print(f"  {node}: {status}")
         if delay:
             results.append((delay, node))
-        time.sleep(0.1)
+        time.sleep(0.1)  # 避免打得太快
 
     if not results:
         print("❌ 所有节点均超时")
