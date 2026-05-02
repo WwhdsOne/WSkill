@@ -1,6 +1,7 @@
 # redis.io 文档抓取模式
 
 > 用于下次更新 `redis-diagnostics` skill 时重新抓取官方文档
+> Skill 路径：`~/WSkill/redis-diagnostics/`
 
 ---
 
@@ -70,3 +71,93 @@ info_fields = [
 4. **HOTKEYS 系列**：仅在 Redis 8.6+ 可用，低版本 Redis 访问返回错误
 5. **`redis-cli --hotkeys`**：文档中无独立章节，仅在选项列表中提及
 6. **LATENCY HISTOGRAM 版本**：官方标 Redis 7.0.0（非任务描述中的 7.4+）
+
+---
+
+## 实战捕获：URL 模式对照表
+
+### .md 源可用（推荐）
+
+| 命令页面 | 成功 | 体积 |
+|----------|------|------|
+| `commands/info/index.md` | ✅ | 53KB |
+| `commands/slowlog/index.md` | ✅ | 1.3KB |
+| `commands/config-get/index.md` | ✅ | 3KB |
+| `commands/memory-stats/index.md` | ✅ | 6KB |
+| `commands/memory-usage/index.md` | ✅ | 3.4KB |
+
+### .md 源不可用（必用 HTML）
+
+| 命令页面 | HTML 体积 | 原因 |
+|----------|-----------|------|
+| `commands/scan/` | 3.2MB | 12+ 语言客户端代码示例 |
+| `commands/client-list/` | 225KB | — |
+| `commands/acl-log/` | 229KB | — |
+| `commands/hotkeys-start/` | 225KB | — |
+
+### CLI 页面
+
+| URL | 体积 | 说明 |
+|-----|------|------|
+| `develop/tools/cli/` | 181KB | —stat, --latency 等终端模式 |
+| 该页面无 .md 源 | — | 仅 HTML |
+
+---
+
+## 提取脚本模板
+
+以下 Python 提取流程经本 session 验证可用：
+
+```python
+import urllib.request, re, json
+
+def fetch_html(url: str) -> str:
+    """抓取页面 HTML"""
+    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+    with urllib.request.urlopen(req, timeout=60) as resp:
+        return resp.read().decode('utf-8', errors='replace')
+
+def extract_metadata(html: str) -> dict:
+    """从 <script data-ai-metadata> 提取命令元数据"""
+    m = re.search(r'<script[^>]*data-ai-metadata[^>]*>(.*?)</script>', html, re.DOTALL)
+    return json.loads(m.group(1)) if m else {}
+
+def extract_content_section(html: str) -> str:
+    """提取 <section class=\"prose w-full py-12\"> 内容"""
+    m = re.search(r'<section class="prose w-full py-12">(.*?)</section>', html, re.DOTALL)
+    if not m:
+        return html
+    # Strip HTML tags
+    text = re.sub(r'<[^>]+>', '\n', m.group(1))
+    text = re.sub(r'\n{3,}', '\n\n', text)
+    return text.strip()
+
+def try_md_source(slug: str) -> str | None:
+    """优先尝试 .md 源"""
+    url = f'https://redis.io/docs/latest/commands/{slug}/index.md'
+    try:
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            md = resp.read().decode('utf-8')
+            # Strip YAML frontmatter if present
+            if md.startswith('---'):
+                parts = md.split('---', 2)
+                if len(parts) >= 3:
+                    md = parts[2]
+            return md.strip()
+    except Exception:
+        return None
+
+# 使用示例
+# MD 源：md = try_md_source('info')
+# HTML 源：html = fetch_html('https://redis.io/docs/latest/commands/scan/')
+```
+
+---
+
+## timeout 与并发策略
+
+- **单个页面超时设置**：INFO 页面 333KB → 10s 足够；SCAN 页面 3.2MB → 设 60s
+- **并发限制**：`delegate_task` 最多 3 个子任务并行
+- **分批策略**：5 组命令分 2 批（3+2），避免单批超时拖垮全部
+- **失败兜底**：单个子任务超时后，拆分成更小的组重新提交
