@@ -1,7 +1,7 @@
 ---
 name: hertz
 description: > 
-  CloudWeGo Hertz — 高性能 Go HTTP 框架（ByteDance 开源）。安装、路由、中间件、Client、Hz 代码生成、配置、SSE、TLS、服务发现集成。
+  CloudWeGo Hertz — 高性能 Go HTTP 框架（ByteDance 开源）。安装、路由、中间件、Client、Hz 代码生成、配置、SSE（服务端推送+客户端消费）、WebSocket（gorilla/websocket + adaptor）、TLS、服务发现集成。
 ---
 
 # CloudWeGo Hertz
@@ -328,27 +328,65 @@ hz new -template_dir ./templates
 
 ## 10. SSE 支持
 
-Hertz 内置 SSE（Server-Sent Events）支持：
+Hertz 内置 SSE 支持，使用 `github.com/cloudwego/hertz/pkg/protocol/sse` 包，支持服务端推送和客户端消费。
+
+### 服务端实现
 
 ```go
+import (
+    "github.com/cloudwego/hertz/pkg/app"
+    "github.com/cloudwego/hertz/pkg/protocol/sse"
+)
+
 h.GET("/events", func(ctx context.Context, c *app.RequestContext) {
-    c.SetSSEHandler(func(stream *app.SSEStream) error {
-        for i := 0; i < 10; i++ {
-            stream.Send(&app.SSEEvent{
-                Event: "message",
-                Data:  fmt.Sprintf("count: %d", i),
-            })
-            time.Sleep(1 * time.Second)
-        }
-        return nil
-    })
+    w := sse.NewWriter(c)
+    for i := 0; i < 5; i++ {
+        w.WriteEvent("id-x", "message", []byte("hello\n\nworld"))
+        time.Sleep(1 * time.Second)
+    }
+    w.Close() // 可选，Handler 返回后 Hertz 会自动关闭
 })
 ```
 
-SSE 自动处理：
-- 设置 `Content-Type: text/event-stream`
-- 关闭缓存
-- 连接断开检测
+### 客户端消费
+
+```go
+import (
+    "github.com/cloudwego/hertz/pkg/app/client"
+    "github.com/cloudwego/hertz/pkg/protocol"
+    "github.com/cloudwego/hertz/pkg/protocol/sse"
+)
+
+c, _ := client.NewClient()
+req, resp := protocol.AcquireRequest(), protocol.AcquireResponse()
+defer func() {
+    protocol.ReleaseRequest(req)
+    protocol.ReleaseResponse(resp)
+}()
+
+req.SetRequestURI("http://localhost:8888/events")
+sse.AddAcceptMIME(req)            // 添加 Accept: text/event-stream
+sse.SetLastEventID(req, "id-123") // 可选：断线重连时指定 lastEventID
+
+_ = c.Do(context.Background(), req, resp)
+
+reader, _ := sse.NewReader(resp)
+_ = reader.ForEach(ctx, func(e *sse.Event) error {
+    fmt.Printf("Event: %s\nData: %s\n", e.Type, string(e.Data))
+    return nil
+})
+```
+
+### Event 结构
+
+```go
+type Event struct {
+    ID    string        // Event ID
+    Type  string        // Event Type（如 "message"）
+    Data  []byte        // 数据
+    Retry time.Duration // 重试间隔（浏览器 EventSource 用）
+}
+```
 
 ---
 
@@ -449,7 +487,54 @@ go get github.com/hertz-contrib/monitor-prometheus
 ### 协议扩展
 
 - **HTTP/2**：`github.com/hertz-contrib/http2`
-- **WebSocket**：`github.com/hertz-contrib/websocket`
+- **WebSocket**（⚠️ 推荐方案 — `hertz-contrib/websocket` 已废弃）：
+
+  Hertz 官方推荐直接使用 `gorilla/websocket` + Hertz HTTP Adaptor：
+
+  ```go
+  import (
+      "github.com/cloudwego/hertz/pkg/app/server"
+      "github.com/cloudwego/hertz/pkg/common/adaptor"
+      "github.com/gorilla/websocket"
+  )
+
+  var upgrader = websocket.Upgrader{}
+
+  func echo(w http.ResponseWriter, r *http.Request) {
+      conn, err := upgrader.Upgrade(w, r, nil)
+      if err != nil {
+          log.Print("upgrade:", err)
+          return
+      }
+      defer conn.Close()
+      for {
+          mt, msg, err := conn.ReadMessage()
+          if err != nil {
+              break
+          }
+          conn.WriteMessage(mt, msg)
+      }
+  }
+
+  func main() {
+      h := server.New(server.WithHostPorts(":8080"))
+      h.GET("/echo", adaptor.HertzHandler(http.HandlerFunc(echo)))
+      h.Spin()
+  }
+  ```
+
+  **旧方案**（已废弃，`hertz-contrib/websocket`）：
+
+  ```go
+  import "github.com/hertz-contrib/websocket"
+
+  var upgrader = websocket.HertzUpgrader{}
+  h.GET("/echo", func(_ context.Context, c *app.RequestContext) {
+      err := upgrader.Upgrade(c, func(conn *websocket.Conn) {
+          // ...
+      })
+  })
+  ```
 
 ---
 
