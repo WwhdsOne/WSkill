@@ -4,7 +4,7 @@ import json, urllib.request, urllib.parse, sys, time
 
 API_BASE = "http://127.0.0.1:9090"
 SECRET = "YOUR_SECRET"  # 从 mixin.yaml 获取
-GROUP_NAME = "低调机场"  # Selector 组名
+GROUP_NAME = "机场"  # Selector 组名
 TIMEOUT_MS = 5000
 TEST_URL = "https://www.google.com"
 

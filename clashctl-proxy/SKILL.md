@@ -160,7 +160,7 @@ python3 ~/.hermes/scripts/switch_proxy.py
 ```
 
 The script:
-1. Lists all nodes in the Selector group (default: "低调机场")
+1. Lists all nodes in the Selector group (default: "机场")
 2. Tests each node's delay via mihomo API (5s timeout, tested against google.com)
 3. Sorts by latency ascending
 4. Switches to the fastest node if it's better than the current one
@@ -198,7 +198,7 @@ Configuration constants (edit directly in the script):
 |----------|---------|-------------|
 | `API_BASE` | `http://127.0.0.1:9090` | mihomo API address |
 | `SECRET` | `<YOUR_SECRET>` | API secret from mixin.yaml — **替换为此处示例值** |
-| `GROUP_NAME` | `低调机场` | Selector group to manage |
+| `GROUP_NAME` | `机场` | Selector group to manage |
 | `TIMEOUT_MS` | `5000` | Per-node test timeout |
 | `TEST_URL` | `https://www.google.com` | URL for latency test |
 
@@ -210,7 +210,7 @@ It supports prefix/suffix/override/inject patterns:
 ```yaml
 rules:
   prefix:
-    - DOMAIN-SUFFIX,google.com,低调机场
+    - DOMAIN-SUFFIX,google.com,机场
   suffix:
     - MATCH,DIRECT
 proxies:
@@ -219,7 +219,7 @@ proxies:
       port: 443
 proxy-groups:
   inject:
-    低调机场:
+    机场:
       - "MyCustomNode"
 ```
 
