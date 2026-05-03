@@ -197,7 +197,7 @@ Configuration constants (edit directly in the script):
 | Constant | Default | Description |
 |----------|---------|-------------|
 | `API_BASE` | `http://127.0.0.1:9090` | mihomo API address |
-| `SECRET` | `wwh852456` | API secret from mixin.yaml |
+| `SECRET` | `<YOUR_SECRET>` | API secret from mixin.yaml — **替换为此处示例值** |
 | `GROUP_NAME` | `低调机场` | Selector group to manage |
 | `TIMEOUT_MS` | `5000` | Per-node test timeout |
 | `TEST_URL` | `https://www.google.com` | URL for latency test |
