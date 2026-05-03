@@ -10,9 +10,10 @@
 
 | Skill | 说明 |
 |-------|------|
+| `clashctl-proxy/` | mihomo/clash 代理管理 — CLI、REST API、自动切节点 |
+| `go-modern/` | Go 1.22–1.26 版本变更速查（语言/标准库/工具链） |
+| `hertz/` | CloudWeGo Hertz — 高性能 Go HTTP 框架 |
 | `redis-diagnostics/` | 纯原生 Redis 诊断（仅 redis-cli + 内置命令） |
-| `karpathy-guidelines/` | Karpathy 编码准则（编码前思考/简洁优先/精准修改/目标驱动） |
-| `skill-creator/` | Skill 创建与迭代方法论（Anthropic 原版参考） |
 
 ## 使用方式
 
