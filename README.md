@@ -12,14 +12,3 @@
 | `go-modern` | Go 1.22–1.26 版本变更速查（语言/标准库/工具链） |
 | `hertz` | CloudWeGo Hertz — 高性能 Go HTTP 框架 |
 | `redis-diagnostics` | 纯原生 Redis 诊断（仅 redis-cli + 内置命令） |
-
-## 安装
-
-```bash
-codebuddy skill install https://raw.githubusercontent.com/WwhdsOne/WSkill/main/eino/SKILL.md
-codebuddy skill install https://raw.githubusercontent.com/WwhdsOne/WSkill/main/clashctl-proxy/SKILL.md
-codebuddy skill install https://raw.githubusercontent.com/WwhdsOne/WSkill/main/frontend-design/SKILL.md
-codebuddy skill install https://raw.githubusercontent.com/WwhdsOne/WSkill/main/go-modern/SKILL.md
-codebuddy skill install https://raw.githubusercontent.com/WwhdsOne/WSkill/main/hertz/SKILL.md
-codebuddy skill install https://raw.githubusercontent.com/WwhdsOne/WSkill/main/redis-diagnostics/SKILL.md
-```
