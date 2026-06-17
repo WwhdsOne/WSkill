@@ -143,14 +143,53 @@ $$ \mathcal{L} = ... $$
 
 > 资源搜索在写总结之后进行，结果放在 MD 文件末尾。搜索前先看论文原文是否已经提供了 Code/Project 链接，这样最准。
 
-### 4. 生成 SVG 图解（如适用）
+### 4. 生成图解（SVG，方案C — data URI 内嵌渲染公式）
 
 条件：论文有清晰的**架构图/流程图/模块关系**
 
-- 风格：手绘风线条，灰/蓝/橙色系
 - 存放路径：`/root/LearningNotes/paper/images/<文件名前缀>-pipeline.svg`
-- MD 中用相对路径引用
+- MD 中用相对路径引用：`![pipeline](images/<文件名前缀>-pipeline.svg)`
 - 纯数学/理论推导论文不强行作图
+
+**核心流程（在 execute_code 中一次性完成）：**
+
+```python
+from hermes_tools import write_file
+import base64, urllib.parse
+
+# 1. 定义图表中需要的公式
+formulas = {
+    "公式名": r"LaTeX代码",
+    "softmax": r"\alpha_t = \frac{\exp(e_t)}{\sum_{\tau}\exp(e_{\tau})}",
+}
+
+# 2. 用 CodeCogs 渲染每个公式 → SVG → base64
+formulas_b64 = {}
+for name, latex in formulas.items():
+    encoded = urllib.parse.quote(latex)
+    r = terminal(f'curl -s "https://latex.codecogs.com/svg.image?{encoded}" --max-time 10')
+    svg = r["output"]
+    if svg.startswith("<?xml"):
+        svg = svg.split("?>", 1)[1].strip()
+    formulas_b64[name] = base64.b64encode(svg.encode()).decode()
+
+# 3. 构建主 SVG（字符串拼接），data URI 嵌入公式
+svg_content = '<svg ...>'
+# 框线箭头用普通 SVG 标签
+# 公式用 <image> 标签：
+svg_content += '<image x="595" y="142" width="140" height="16" ' + \
+    'xlink:href="data:image/svg+xml;base64,' + formulas_b64["公式名"] + '"/>'
+
+# 4. 直接写入目标路径
+write_file(path="/root/LearningNotes/paper/images/xxx-pipeline.svg", content=svg_content)
+```
+
+**重要约束：**
+- 只在 execute_code 块中执行拼接，**不要**在 write_file 的模板字符串中留 `formulas_b64["xxx"]` 占位符——必须在同一个 runtime 中完成变量替换
+- 主 SVG 单文件自包含（框线 + 文字 + data URI 公式），不额外创建公式文件
+- CodeCogs 返回的 SVG 需要去掉 `<?xml ... ?>` 声明头再 base64，否则部分渲染器会报错
+- 坐标微调：公式 `<image>` 的 `y` 坐标通常比周围文字标签的 `y` 多 2-4px（因为公式 SVG 本身有内部边距）
+- 如果公式排版后尺寸过大或对齐困难，改为图表中只写纯文字标签（如 "Weighted Mean"），公式全部放在 MD 正文 `$$` 块中
 
 ### 5. Obsidian 标签
 
